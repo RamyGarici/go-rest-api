@@ -1,10 +1,15 @@
 package main
 
 import (
-	"net/http"
 	"errors"
+	"net/http"
+	"strings"
+	"sync"
+	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/golang-jwt/jwt/v5"
+	"golang.org/x/crypto/bcrypt"
 )
 
 type todo struct{
@@ -12,6 +17,13 @@ type todo struct{
 	Item       string   `json:"item"`
 	Completed  bool     `json:"completed"`
 }
+
+type user struct{
+	Username string     `json:"username"`
+	Password string     `json:"-"`
+}
+var usersDB = make(map[string]string)
+var mu      sync.RWMutex
 
 var todos = []todo {
 	{ID:"1",Item:"Read Book", Completed: false},
@@ -60,6 +72,33 @@ func toggleTodoStatus(c *gin.Context){
 	c.IndentedJSON(http.StatusOK,todo)
 
 }
+
+func register(c *gin.Context) {
+	var req user
+	if err := c.BindJSON(&req); err!=nil{
+		c.IndentedJSON(http.StatusBadRequest,gin.H{"message":"Invalid data"})
+		return
+	}
+	if req.Username =="" || req.Password ==""{
+		c.IndentedJSON(http.StatusBadRequest,gin.H{"message":"Empty Body"})
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	if _,ok := usersDB[req.Username];ok{
+			c.IndentedJSON(http.StatusConflict,gin.H{"message":"User already exists."})
+			return
+	}
+
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password),14)
+	if err!=nil{
+		c.IndentedJSON(http.StatusInternalServerError,gin.H{"message":"Error when hashing the password"})
+	}
+	usersDB[req.Username] = string(hashedPassword)
+	c.IndentedJSON(http.StatusCreated,gin.H{"message":"Successfully Registered"})
+}
+
+
+
 
 
 func main() {
