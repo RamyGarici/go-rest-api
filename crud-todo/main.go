@@ -20,7 +20,7 @@ type todo struct{
 
 type user struct{
 	Username string     `json:"username"`
-	Password string     `json:"-"`
+	Password string     `json:"password"`
 }
 var usersDB = make(map[string]string)
 var mu      sync.RWMutex
@@ -81,6 +81,7 @@ func register(c *gin.Context) {
 	}
 	if req.Username =="" || req.Password ==""{
 		c.IndentedJSON(http.StatusBadRequest,gin.H{"message":"Empty Body"})
+		return
 	}
 	mu.Lock()
 	defer mu.Unlock()
