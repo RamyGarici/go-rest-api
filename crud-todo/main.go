@@ -3,16 +3,18 @@ package main
 import (
 	"errors"
 	"net/http"
-	"strings"
-	"sync"
-	"time"
 
+	"sync"
+	
+    "time"
+	"strings"
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/crypto/bcrypt"
 )
 
 type todo struct{
+	
 	ID        string    `json:"id"`
 	Item       string   `json:"item"`
 	Completed  bool     `json:"completed"`
@@ -24,7 +26,7 @@ type user struct{
 }
 var usersDB = make(map[string]string)
 var mu      sync.RWMutex
-
+var jwtSecret = []byte("secret_key")
 var todos = []todo {
 	{ID:"1",Item:"Read Book", Completed: false},
 	{ID:"2",Item:"Clean Room", Completed: false},
@@ -49,6 +51,7 @@ func getTodo(c *gin.Context) {
 	todo, err := getTodoById(id)
 	if err != nil {
 		c.IndentedJSON(http.StatusNotFound, gin.H{"message":"todo not found"})
+		return
 	}
 	c.IndentedJSON(http.StatusOK,todo)
 
@@ -67,6 +70,7 @@ func toggleTodoStatus(c *gin.Context){
 	todo, err := getTodoById(id)
 	if err != nil {
 		c.IndentedJSON(http.StatusNotFound, gin.H{"message":"todo not found"})
+		return
 	}
 	todo.Completed = !todo.Completed
 	c.IndentedJSON(http.StatusOK,todo)
@@ -93,21 +97,92 @@ func register(c *gin.Context) {
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password),14)
 	if err!=nil{
 		c.IndentedJSON(http.StatusInternalServerError,gin.H{"message":"Error when hashing the password"})
+		return
 	}
 	usersDB[req.Username] = string(hashedPassword)
 	c.IndentedJSON(http.StatusCreated,gin.H{"message":"Successfully Registered"})
 }
 
+func login(c *gin.Context) {
+	var req user
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.IndentedJSON(http.StatusBadRequest, gin.H{"message": "Invalid JSON"})
+		return
+	}
+	mu.RLock()
+	storedHash, exists := usersDB[req.Username]
+	mu.RUnlock()
+	if !exists {
+		c.IndentedJSON(http.StatusUnauthorized, gin.H{"message": "Invalid Credentials"})
+		return
+	}
+	err := bcrypt.CompareHashAndPassword([]byte(storedHash),[]byte(req.Password))
+	if err!=nil{
+		c.IndentedJSON(http.StatusUnauthorized, gin.H{"message": "Invalid Credentials"})
+		return
+	}
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256,jwt.MapClaims{"username":req.Username,
+"exp": time.Now().Add(time.Hour * 24).Unix()})
+    
+tokenString,err := token.SignedString(jwtSecret)
+if err != nil {
+		c.IndentedJSON(http.StatusInternalServerError, gin.H{"message": "Error Generating Token"})
+		return
+	}
 
+	c.IndentedJSON(http.StatusOK, gin.H{"token": tokenString})
+
+}
+
+func authMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		authHeader := c.GetHeader("Authorization")
+		if authHeader == "" {
+			c.IndentedJSON(http.StatusUnauthorized, gin.H{"message": "Authorization header required"})
+			c.Abort()
+			return
+		}
+
+		parts := strings.Split(authHeader, " ")
+		if len(parts) != 2 || parts[0] != "Bearer" {
+			c.IndentedJSON(http.StatusUnauthorized, gin.H{"message": "Invalid Authorization header format"})
+			c.Abort()
+			return
+		}
+
+		token, err := jwt.Parse(parts[1], func(token *jwt.Token) (interface{}, error) {
+			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+				return nil, errors.New("unexpected signing method")
+			}
+			return jwtSecret, nil
+		})
+
+		if err != nil || !token.Valid {
+			c.IndentedJSON(http.StatusUnauthorized, gin.H{"message": "Invalid or expired token"})
+			c.Abort()
+			return
+		}
+
+		c.Next()
+	}
+}
 
 
 
 func main() {
 	router := gin.Default()
-	router.GET("/todos",getTodos)
-	router.GET("/todos/:id",getTodo)
-	router.PATCH("/todos/:id",toggleTodoStatus)
-	router.POST("/todos",addTodos)
 	router.POST("/register",register)
+	router.POST("/login", login)
+
+
+	protected := router.Group("/")
+	protected.Use(authMiddleware())
+	{
+	protected.GET("/todos",getTodos)
+	protected.GET("/todos/:id",getTodo)
+	protected.PATCH("/todos/:id",toggleTodoStatus)
+	protected.POST("/todos",addTodos)
+	}
+
 	router.Run("localhost:9090")
 }
