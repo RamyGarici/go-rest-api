@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"time"
 
+
 	"github.com/gin-gonic/gin"
 )
 
@@ -21,6 +22,9 @@ type note struct{
 var notes []note
 
 func getNotes(c *gin.Context) {
+	if len(notes)==0{
+		c.IndentedJSON(http.StatusOK,gin.H{"message":"No notes."})
+	}
 	c.IndentedJSON(http.StatusOK,notes)
 }
 
@@ -89,6 +93,26 @@ func editNote(c *gin.Context) {
 
 }
 
+func deleteNote(c *gin.Context) {
+	id,err := strconv.Atoi(c.Param("id"))
+	if err != nil{
+		c.IndentedJSON(http.StatusBadRequest,gin.H{"message":"invalid id"})
+		return
+	}
+	for i,n := range notes{
+		if n.ID == id {
+			notes = append(notes[:i],notes[i+1:]...)
+			c.Status(http.StatusNoContent)
+			return
+		}
+
+	}
+	    c.IndentedJSON(http.StatusNotFound,gin.H{"message":"Note not found"})
+		
+
+	  
+}
+
 
 
 
@@ -98,6 +122,7 @@ func main() {
 	router.POST("/notes",addNotes)
 	router.GET("/notes/:id",getNote)
 	router.PUT("/notes/:id",editNote)
+	router.DELETE("/notes/:id",deleteNote)
 
 	router.Run(":8080")
 
