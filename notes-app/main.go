@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strconv"
 	"time"
+	"strings"
 
 
 	"github.com/gin-gonic/gin"
@@ -24,8 +25,19 @@ var notes []note
 func getNotes(c *gin.Context) {
 	if len(notes)==0{
 		c.IndentedJSON(http.StatusOK,gin.H{"message":"No notes."})
+		return
 	}
-	c.IndentedJSON(http.StatusOK,notes)
+	title:= c.Query("title")
+	page := c.Query("page")
+	limit := c.Query("limit")
+	var foundNotes []note
+	for _,foundNote := range notes{
+		if strings.Contains(foundNote.Title,title){
+
+			foundNotes = append(foundNotes,foundNote)
+		}
+	}
+	c.IndentedJSON(http.StatusOK,foundNotes)
 }
 
 func addNotes(c *gin.Context) {
