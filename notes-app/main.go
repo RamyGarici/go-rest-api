@@ -23,10 +23,6 @@ type note struct{
 var notes []note
 
 func getNotes(c *gin.Context) {
-	if len(notes)==0{
-		c.IndentedJSON(http.StatusOK,gin.H{"message":"No notes."})
-		return
-	}
 	title:= c.Query("title")
 	
 	var foundNotes []note
@@ -35,6 +31,10 @@ func getNotes(c *gin.Context) {
 
 			foundNotes = append(foundNotes,foundNote)
 		}
+	}
+	if len(foundNotes)==0{
+		c.IndentedJSON(http.StatusOK,gin.H{"message":"No notes."})
+		return
 	}
 	c.IndentedJSON(http.StatusOK,foundNotes)
 }
