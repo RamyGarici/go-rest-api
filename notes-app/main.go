@@ -1,10 +1,10 @@
 package main
 
 import (
-	"net/http"
-	"time"
 	"errors"
+	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 )
@@ -26,7 +26,7 @@ func getNotes(c *gin.Context) {
 
 func addNotes(c *gin.Context) {
 	var newNote note
-	err := c.BindJSON(&newNote)
+	err := c.ShouldBindJSON(&newNote)
 	if err != nil{
 		c.IndentedJSON(http.StatusBadRequest,gin.H{"message":"Title and Content required"})
 		return
@@ -45,12 +45,12 @@ func getNote(c *gin.Context) {
 		c.IndentedJSON(http.StatusBadRequest,gin.H{"message":"invalid id"})
 		return
 	}
-	note, err := getNoteById(id)
+	foundNote, err := getNoteById(id)
 	if err !=nil{
 		c.IndentedJSON(http.StatusNotFound,gin.H{"message":"Note not found"})
 		return
 	}
-	c.IndentedJSON(http.StatusOK,note)
+	c.IndentedJSON(http.StatusOK,foundNote)
 }
 
 func getNoteById(id int) (*note, error){
@@ -64,6 +64,30 @@ func getNoteById(id int) (*note, error){
 
 }
 
+func editNote(c *gin.Context) {
+	id,err := strconv.Atoi(c.Param("id"))
+	if err != nil{
+		c.IndentedJSON(http.StatusBadRequest,gin.H{"message":"invalid id"})
+		return
+	}
+	foundNote, err := getNoteById(id)
+	if err !=nil{
+		c.IndentedJSON(http.StatusNotFound,gin.H{"message":"Note not found"})
+		return
+	}
+	var updatedNote note 
+	err = c.ShouldBindJSON(&updatedNote)
+	if err!=nil{
+		c.IndentedJSON(http.StatusBadRequest,gin.H{"message":"Invalid body"})
+        return
+	}
+	foundNote.Title = updatedNote.Title
+	foundNote.Content= updatedNote.Content
+
+	foundNote.UpdatedAt = time.Now()
+	c.IndentedJSON(http.StatusOK,foundNote)
+
+}
 
 
 
@@ -73,6 +97,7 @@ func main() {
 	router.GET("/notes",getNotes)
 	router.POST("/notes",addNotes)
 	router.GET("/notes/:id",getNote)
+	router.PUT("/notes/:id",editNote)
 
 	router.Run(":8080")
 
