@@ -28,8 +28,7 @@ func getNotes(c *gin.Context) {
 		return
 	}
 	title:= c.Query("title")
-	page := c.Query("page")
-	limit := c.Query("limit")
+	
 	var foundNotes []note
 	for _,foundNote := range notes{
 		if strings.Contains(foundNote.Title,title){
