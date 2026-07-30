@@ -19,7 +19,7 @@ type note struct{
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 
-}
+} 
 var notes []note
 
 func getNotes(c *gin.Context) {
