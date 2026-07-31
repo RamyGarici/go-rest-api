@@ -42,7 +42,7 @@ func(cfg *apiConfig) shortenURL(c *gin.Context) {
     err = cfg.DB.QueryRow(
         c.Request.Context(),
         "INSERT INTO urls(original_url) VALUES ($1) RETURNING id",
-        request.Url,
+        request.URL,
     ).Scan(&id)
 
     if err!=nil{
@@ -81,6 +81,23 @@ if err!=nil{
     return result
  }
 
+func (cfg *apiConfig) redirectURL(c *gin.Context) {
+    code := c.Param("code")
+    var OriginalURL string
+    err:= cfg.DB.QueryRow(
+        c.Request.Context(),
+        "SELECT original_url FROM urls WHERE short_code = $1",
+        code,
+    ).Scan(&OriginalURL)
+    if err!=nil{
+        c.JSON(http.StatusNotFound,gin.H{"message":"URL not found"})
+        return
+    }
+    c.Redirect(http.StatusMovedPermanently,OriginalURL)
+}
+
+   
+
 
 
 
@@ -105,5 +122,6 @@ func main() {
 
    router := gin.Default()
    router.POST("/shorten",cfg.shortenURL)
+   router.GET("/:code",cfg.redirectURL)
    router.Run(":8080")
 }
