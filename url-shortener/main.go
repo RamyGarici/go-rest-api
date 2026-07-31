@@ -9,6 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5"
+    "github.com/joho/godotenv"
 )
 
 type URL struct{
@@ -83,17 +84,17 @@ if err!=nil{
 
 func (cfg *apiConfig) redirectURL(c *gin.Context) {
     code := c.Param("code")
-    var OriginalURL string
+    var originalURL string
     err:= cfg.DB.QueryRow(
         c.Request.Context(),
         "SELECT original_url FROM urls WHERE short_code = $1",
         code,
-    ).Scan(&OriginalURL)
+    ).Scan(&originalURL)
     if err!=nil{
         c.JSON(http.StatusNotFound,gin.H{"message":"URL not found"})
         return
     }
-    c.Redirect(http.StatusMovedPermanently,OriginalURL)
+    c.Redirect(http.StatusMovedPermanently,originalURL)
 }
 
    
@@ -102,6 +103,7 @@ func (cfg *apiConfig) redirectURL(c *gin.Context) {
 
 
 func main() {
+    godotenv.Load()
  connStr := os.Getenv("DATABASE_URL")
   conn, err := pgx.Connect(context.Background(),connStr)
  if err!=nil{
