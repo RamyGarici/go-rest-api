@@ -22,9 +22,20 @@ func writeJSONError( w http.ResponseWriter, message string, statusCode int){
 }
 
 func writeJSON( w http.ResponseWriter, status int, data any){
+	bytes, err := json.Marshal(data)
+	if err!=nil{
+		log.Printf("Serailization JSON %v",err)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte(`{"error":"Serialization error"}`))
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(status)
+		w.Write(bytes)
 
 
-	
+
 }
 
 
@@ -32,15 +43,9 @@ func writeJSON( w http.ResponseWriter, status int, data any){
 
 
 func health(w http.ResponseWriter, req *http.Request){
-	w.Header().Set("Content-Type", "application/json")
 	resp:= HealthResponse{Status: "ok"}
-	err := json.NewEncoder(w).Encode(resp)
-	if err!= nil{
-		writeJSONError(w, "Server error", http.StatusInternalServerError)
-		return
-	}
+	writeJSON(w,http.StatusOK,resp)
 }
-
 
 
 
