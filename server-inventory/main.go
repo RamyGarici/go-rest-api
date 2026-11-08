@@ -14,11 +14,7 @@ type ErrorResponse struct{
 }
 
 func writeJSONError( w http.ResponseWriter, message string, statusCode int){
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(statusCode)
-	if err:=json.NewEncoder(w).Encode(ErrorResponse{Error: message});err!=nil{
-		log.Printf("Error JSON Encoding %v",err)
-	}
+	writeJSON(w,statusCode,ErrorResponse{Error: message})
 }
 
 func writeJSON( w http.ResponseWriter, status int, data any){
@@ -31,11 +27,8 @@ func writeJSON( w http.ResponseWriter, status int, data any){
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(status)
-		w.Write(bytes)
-
-
-
+	w.WriteHeader(status)
+	w.Write(bytes)
 }
 
 
